@@ -17,16 +17,10 @@ Timeline = Timeline.timelineSession;
 % Do some plots to help spot dodgy data
 figure;
 ax=[];
-if size(Timeline.daqData,1)>60000
-    samplesToPlot = 1:60000;
-else
-   samplesToPlot = 1:size(Timeline.daqData,1);
-end
- 
-size(Timeline.daqData,1);
+samplesToPlot = size(
 for iPlot = 1:length(Timeline.chNames)
     ax(end+1) = subplot(length(Timeline.chNames),1,iPlot);
-    plot(samplesToPlot/1000,Timeline.daqData(samplesToPlot,iPlot));
+    plot(Timeline.daqData(:,iPlot));
     title(Timeline.chNames{iPlot});
 end
 linkaxes(ax,'x');
