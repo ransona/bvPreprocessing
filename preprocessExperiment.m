@@ -2,7 +2,7 @@ function preprocessExperiment()
 % updated 22.10.21 AR
 
 dataRoot = 'D:\data';
-expID = '2021-11-16_09_ESPM040';
+expID = '2021-09-30_02_TEST';
 
 animalID = expID(15:end);
 expRoot = fullfile(dataRoot,animalID,expID);
@@ -20,9 +20,9 @@ ax=[];
 if size(Timeline.daqData,1)>60000
     samplesToPlot = 1:60000;
 else
-   samplesToPlot = 1:size(Timeline.daqData,1);
+    samplesToPlot = 1:size(Timeline.daqData,1);
 end
- 
+
 size(Timeline.daqData,1);
 for iPlot = 1:length(Timeline.chNames)
     ax(end+1) = subplot(length(Timeline.chNames),1,iPlot);
@@ -154,7 +154,7 @@ for iStimType = 1:size(uniqueStims,1)
     stimParams = [ones([size(stimParams,1) 1])*iStimType,[1:size(stimParams,1)]',repmat(featuretype,[[size(stimParams,1) 1]]),stimParams];
     allStimTypes = [allStimTypes;stimParams];
 end
-    
+
 % add running trace
 Encoder = readtable(fullfile(expRoot,[expID,'_Encoder.csv']));
 Encoder.Properties.VariableNames = {'Frame','Timestamp','Trial','Position'};
@@ -447,7 +447,7 @@ if exist(fullfile(expRoot,'suite2p'),'dir')
             allDepths{iCh} = [allDepths{iCh};repmat(iDepth,[sum(cellValid(:,1)),1])];
             allRoiPix{iCh,iDepth+1} = roiPix;
             allRoiMaps{iCh,iDepth+1} = roiMap;
-    
+            
             allFOV{iCh} = Fall.ops.meanImg;
             
         end
@@ -486,12 +486,12 @@ writematrix([Timeline.time',Timeline.daqData(:,[ePhys1Idx ePhys2Idx])],fullfile(
 try
     load(fullfile(expRoot,[expID,'_eyeMeta1.mat']));
     camIdx  = find(ismember(Timeline.chNames,'EyeCamera'));
-    camPulseTrace = Timeline.daqData(:,camIdx)>3.5;
-    framePulseTimes = Timeline.time(find(abs(diff(camPulseTrace))==1));
+    camPulseTrace = Timeline.daqData(:,camIdx)>2.5;
+    framePulseTimes = Timeline.time(find(diff(camPulseTrace)==1));
     % do some quality check that frame pulse times are not noisy
     % camera as configured should not be acquiring at > 12.5 Hz which
     % equates to a frame pulse interval of < 8 secs
-    if min(diff(framePulseTimes))<8
+    if min(diff(framePulseTimes))<16
         figure;
         if length(Timeline.time)>100000
             plot(Timeline.time(1:100000),Timeline.daqData(1:100000,camIdx));
@@ -500,26 +500,81 @@ try
         end
         title(['Eye camera timing pulses (ch',num2str(camIdx),' of DAQ)']);
         xlabel('Time (secs)');ylabel('Voltage (volts)');
+        disp('The timing pulses on the eye camera look faulty - see the figure');
         error('The timing pulses on the eye camera look faulty - see the figure');
     end
+    
+    
+    loggedFrameTimes = eTrackData.frameTimes - eTrackData.frameTimes(1);
+    loggedFrameTimes = loggedFrameTimes + framePulseTimes(1);
+    % loggedFrameTimes are now approximately in timeline time, with the
+    % caveat that the clock of the eyecam PC and timeline DAQ run at the
+    % same rate. we next therefore periodically 'correct' logged frame times
+    % (logged using eyecam PC system clock) to timeline clock to correct
+    % for drift over time in the timing of the 2 systems:
+    
     % number the frame pulses found
-    framePulseFrameNumbers = 1:100:(length(framePulseTimes))*100;
+    framePulseFrameNumbers = 1:200:(length(framePulseTimes))*200;
+    for iPulse = 1:length(framePulseTimes)
+        % at each pulse calculate how much the systems have gone out of
+        % sync and correct the next 200 frame times in loggedFrameTimes
+        tlTimeOfPulse = framePulseTimes(iPulse);
+        eyecamTimeOfPulse = loggedFrameTimes(framePulseFrameNumbers(iPulse));
+        driftAtPulse = tlTimeOfPulse - eyecamTimeOfPulse;
+        % corrected logged times
+        if iPulse < length(framePulseTimes)
+            loggedFrameTimes(framePulseFrameNumbers(iPulse):framePulseFrameNumbers(iPulse)+199) = ...
+                loggedFrameTimes(framePulseFrameNumbers(iPulse):framePulseFrameNumbers(iPulse)+199) + driftAtPulse;
+        else
+            loggedFrameTimes(framePulseFrameNumbers(iPulse):end) = ...
+                loggedFrameTimes(framePulseFrameNumbers(iPulse):end) + driftAtPulse;
+        end
+    end
+    
     % define frames we want to know the times of
     allFrameNumbers = 1:eTrackData.frameCount;
     allFrameTimes   = interp1(framePulseFrameNumbers,framePulseTimes,allFrameNumbers,'linear','extrap');
     % debugging plots:
-%     figure;
-%     subplot(1,2,1);
-%     plot(allFrameTimes,allFrameNumbers);
-%     hold on
-%     scatter(framePulseTimes,framePulseFrameNumbers,'r');
-%     plot(eTrackData.frameTimes+allFrameTimes(1),allFrameNumbers);
-%     subplot(1,2,2);
-%     plot(allFrameTimes(1:5000),allFrameTimes(1:5000)-eTrackData.frameTimes(1:5000));
+    %     figure;
+    %     subplot(1,2,1);
+    %     plot(allFrameTimes,allFrameNumbers);
+    %     hold on
+    %     scatter(framePulseTimes,framePulseFrameNumbers,'r');
+    %     plot(eTrackData.frameTimes+allFrameTimes(1),allFrameNumbers);
+    %     subplot(1,2,2);
+    %     plot(allFrameTimes(1:5000),allFrameTimes(1:5000)-eTrackData.frameTimes(1:5000));
     %frameSampleTimes = interp1(framePulseTimes,framePulseFrameNumbers,
-    frameRate = 1/median(diff(allFrameTimes));
+    frameRate = 1/median(diff(loggedFrameTimes));
     disp(['Detected eye cam frame rate = ',num2str(frameRate),'Hz']);
-    writematrix([allFrameTimes',allFrameNumbers'],fullfile(recordingsRoot,'eyeFrames.csv'));
+    writematrix([loggedFrameTimes',allFrameNumbers'],fullfile(recordingsRoot,'eyeFrames.csv'));
+    % store detected eye details with timeline timestamps
+    % load
+    try
+        leftEyeData = load(fullfile(expRoot,'dlcEyeLeft.mat'));leftEyeData = leftEyeData.eyeDat;
+        rightEyeData = load(fullfile(expRoot,'dlcEyeRight.mat'));rightEyeData = rightEyeData.eyeDat;
+        
+        % resample to 10Hz constant rate
+        newTimeVector = loggedFrameTimes(1):0.1:loggedFrameTimes(end);
+        leftTable = table;
+        leftTable.time = newTimeVector';
+        leftTable.x = interp1(loggedFrameTimes,leftEyeData.x,newTimeVector)';
+        leftTable.y = interp1(loggedFrameTimes,leftEyeData.y,newTimeVector)';
+        leftTable.radius = interp1(loggedFrameTimes,leftEyeData.radius,newTimeVector)';
+        leftTable.velocity = interp1(loggedFrameTimes,leftEyeData.velocity,newTimeVector)';
+        leftTable.qc = interp1(loggedFrameTimes,leftEyeData.qc,newTimeVector)';
+        writetable(leftTable,fullfile(recordingsRoot,'left_eye.csv'));
+        rightTable = table;
+        rightTable.time = newTimeVector';
+        rightTable.x = interp1(loggedFrameTimes,rightEyeData.x,newTimeVector)';
+        rightTable.y = interp1(loggedFrameTimes,rightEyeData.y,newTimeVector)';
+        rightTable.radius = interp1(loggedFrameTimes,rightEyeData.radius,newTimeVector)';
+        rightTable.velocity = interp1(loggedFrameTimes,rightEyeData.velocity,newTimeVector)';
+        rightTable.qc = interp1(loggedFrameTimes,rightEyeData.qc,newTimeVector)';
+        writetable(rightTable,fullfile(recordingsRoot,'right_eye.csv'));
+        
+    catch
+        disp('Problem loading or processing DLC data');
+    end
 catch
     disp('Camera data NOT processed');
 end
@@ -527,36 +582,36 @@ end
 % Trial properties numeric, rows are trials (inc onset timestamps)
 % Trial properties text, rows are trials (inc onset timestamps)
 % Stim parameter names (first column = timestamps)
-% 
+%
 % wheel position / timestamps
 %
 % 2P frame timestamps
 % 2P ca traces
-% 
+%
 % Cam frame timestamps
 % Cam frame numbers
-% 
+%
 % ePhys timestamps
 % ePhys trace 1
 % ePhys trace 2
 
 % save all CSV files
 
-% %% DEBUGGING 
+% %% DEBUGGING
 % timeDiff = (flipTimesTL(1:end)) - (flipTimesBV(1:end));
 % %timeDiff = timeDiff - mean(timeDiff);
-% 
+%
 % figure;
 % plot(flipTimesTL,timeDiff);
 % xlabel("time elapsed in experiment according to NI DAQ (secs)")
 % ylabel("diff of time of pulse edge detection in NI DAQ vs. frames file")
-% 
+%
 % figure;
 % diff2 = diff(timeDiff);
 % histogram(diff2(diff2>.01),0:0.0167/4:0.0167*5);
 % xlabel("Blip amplitude (how far out of time the 2 systems are)")
 % ylabel("Occurance frequency")
-% 
+%
 % figure;
 % subplot(1,2,1);
 % histogram(diff(flipTimesBV));
@@ -608,7 +663,7 @@ elseif oSize<aSize
     colsToAdd = aSize - oSize;
     original = [original,zeros([1 colsToAdd])];
 end
-M = [original;addition];    
+M = [original;addition];
 end
 
 function data = readNPY(filename)
@@ -627,21 +682,21 @@ else
 end
 
 try
-
+    
     [~] = fread(fid, totalHeaderLength, 'uint8');
-
+    
     % read the data
     data = fread(fid, prod(shape), [dataType '=>' dataType]);
-
+    
     if length(shape)>1 && ~fortranOrder
         data = reshape(data, shape(end:-1:1));
         data = permute(data, [length(shape):-1:1]);
     elseif length(shape)>1
         data = reshape(data, shape);
     end
-
+    
     fclose(fid);
-
+    
 catch me
     fclose(fid);
     rethrow(me);
