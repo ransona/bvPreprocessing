@@ -1,7 +1,8 @@
-function preprocessPupil(expID)
+function preprocessPupil()
 expID = '2021-09-30_02_TEST';
-animalID = expID(15:end);
 dataRoot = 'D:\data';
+animalID = expID(15:end);
+
 expRoot = fullfile(dataRoot,animalID,expID);
 
 displayOn = true;
