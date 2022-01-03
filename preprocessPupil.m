@@ -254,3 +254,9 @@ xCenter = -.5 * a(1);
 yCenter = -.5 * a(2);
 radius  =  sqrt((a(1) ^ 2 + a(2) ^ 2) / 4 - a(3));
 end
+
+function outputFrame=readVideoIndex(videoSource,frameNumber)
+    info=get(videoSource);
+    videoSource.CurrentTime=(frameNumber-1)/info.FrameRate;
+    outputFrame=readFrame(videoSource);
+end
