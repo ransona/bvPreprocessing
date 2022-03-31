@@ -1,8 +1,8 @@
 function preprocessExperiment()
-% updated 22.10.21 AR
 
-dataRoot = 'D:\data';
+dataRoot = 'e:\data';
 expID = '2021-09-30_02_TEST';
+expID = '2021-07-26_01_ESPM016';
 
 animalID = expID(15:end);
 expRoot = fullfile(dataRoot,animalID,expID);
@@ -181,7 +181,7 @@ writecell(paramNames_grating,fullfile(bvDataRoot,'FeatureParamNames_0.csv'));
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
 if exist(fullfile(expRoot,'suite2p'),'dir')
-    doMerge = true;
+    doMerge = false;
     
     resampleFreq = 30;
     
@@ -621,7 +621,7 @@ end
 disp('All done');
 end
 
-function frameMean = loadSuite2PVideoMeanFrame(pathToBinary,frameSize)
+function frame_mean = loadSuite2PVideoMeanFrame(pathToBinary,frameSize)
 
 % fclose all
 % pathToBinary = 'D:\ACC Data\2016-05-28_02_CFEB014\suite2p\plane0\data.bin';
@@ -633,19 +633,18 @@ fsize = finfo.bytes;
 fid = fopen(pathToBinary);
 frameCountCalculation = fsize/frameSize(1)/frameSize(2)/2;
 
-framesInSet = int16([256,256,frameCountCalculation]);
-
+frame_mean = [];
+framesInSet = [];
 for iStart = 1:blockSize:frameCountCalculation
     disp(['Frame ',num2str(iStart),' of ',num2str(frameCountCalculation)]);
     lastFrame = iStart + blockSize-1;
     lastFrame = min(lastFrame,frameCountCalculation);
     framesToRead = lastFrame - iStart + 1;
-    framesInSet(1:frameSize(1),1:frameSize(2),iStart:lastFrame) = reshape(fread(fid,frameSize(1)*frameSize(2)*framesToRead,'int16'),[frameSize(1),frameSize(2),framesToRead]);
+    % read block of frames
+    read_data = fread(fid,frameSize(1)*frameSize(2)*framesToRead,'int16');
+    frames_in_set = reshape(read_data,[frameSize(1)*frameSize(2),framesToRead]);
+    frame_mean = [frame_mean,mean(frames_in_set,1)];
 end
-
-framesInSet = mean(framesInSet,1);
-framesInSet = mean(framesInSet,2);
-frameMean = squeeze(framesInSet);
 
 fclose(fid);
 
