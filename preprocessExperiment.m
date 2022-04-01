@@ -407,11 +407,13 @@ if exist(fullfile(expRoot,'suite2p'),'dir')
                 % what to do if not merging
                 % make a roi map for the depth that can be used for longitudinal imaging etc
                 roiPix = [];
+                % make a blank roi map
+                roiMap = zeros(size(Fall.ops.meanImg));
                 for iRoi = 1:size(F,1)
                     % collect pix in ROI
                     roiPix{iRoi} = sub2ind(size(Fall.ops.meanImg),ypix{iRoi}+1,xpix{iRoi}+1);
                     % label ROI map
-                    roiMap(roiPix{iRoi}) = iCluster;
+                    roiMap(roiPix{iRoi}) = iRoi;
                 end
             end
             
