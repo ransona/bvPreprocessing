@@ -1,27 +1,27 @@
 
 function splitCombined()
 
-how it works:
-1) take a bunch of recordings and add them to suite2p to be processed by
-   clicking 'add directory to data path'
-2) suite2p will then collect all tiffs together and treat them as one
-   experiment
-3) this 'combined' experiment will be processed and saved to the folder of
-   the first experiment you added
-4) next you need to do the usual validations in suite2p:
-   a) make sure the rois that are on the left are all sensible
-   b) go to registration -> view registration metrics and make sure the
-      registration has worked well. tell me if you don't know how to
-      interpret what you see there. you can also watch this video from
-      Carsen: https://cbmm.mit.edu/video/suite2p-fast-and-accurate-pipeline-automatically-processing-functional-imaging-recordings
-      Check out at around 33-35 mins. Although the whole thing is worth
-      watching.
-4) next open this function (splitCombined) and edit the data_root to
-   where your data is, and the first_exp_id to be the ID of the first
-   experiment you added to suite 2p.
-5) it will transfer the relevant part of the suite2p output from each
-   experiment to each experiment's folder. you should then be able to run
-   preprocessExperiment() as usual
+% how it works:
+% 1) take a bunch of recordings and add them to suite2p to be processed by
+%    clicking 'add directory to data path'
+% 2) suite2p will then collect all tiffs together and treat them as one
+%    experiment
+% 3) this 'combined' experiment will be processed and saved to the folder of
+%    the first experiment you added
+% 4) next you need to do the usual validations in suite2p:
+%    a) make sure the rois that are on the left are all sensible
+%    b) go to registration -> view registration metrics and make sure the
+%       registration has worked well. tell me if you don't know how to
+%       interpret what you see there. you can also watch this video from
+%       Carsen: https://cbmm.mit.edu/video/suite2p-fast-and-accurate-pipeline-automatically-processing-functional-imaging-recordings
+%       Check out at around 33-35 mins. Although the whole thing is worth
+%       watching.
+% 4) next open this function (splitCombined) and edit the data_root to
+%    where your data is, and the first_exp_id to be the ID of the first
+%    experiment you added to suite 2p.
+% 5) it will transfer the relevant part of the suite2p output from each
+%    experiment to each experiment's folder. you should then be able to run
+%    preprocessExperiment() as usual
 
 % Information to edit:
 % data root
@@ -95,7 +95,7 @@ for iPlane = 0:length(planes_list)-1
             error(['Error making folder to output suite2p data to for experiment ',expIDs{iExp}]);
         end
         % save matlab data
-        save(fullfile(output_folder,'Fall.mat'),'Fall');
+        save(fullfile(output_folder,'Fall.mat'),'Fall.F','Fall.Fneu','Fall.spks');
         % save npy data
         writeNPY(Fall.F,fullfile(output_folder,'F.npy'));
         writeNPY(npy.Fneu,fullfile(output_folder,'Fneu.npy'));
