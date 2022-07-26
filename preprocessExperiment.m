@@ -1,8 +1,7 @@
 function preprocessExperiment()
 
-dataRoot = 'e:\data';
-expID = '2021-09-30_02_TEST';
-expID = '2021-07-26_01_ESPM016';
+dataRoot = 'E:\Local_Repository';
+expID = '2022-04-20_07_ESMT072';
 
 animalID = expID(15:end);
 expRoot = fullfile(dataRoot,animalID,expID);
@@ -635,8 +634,8 @@ fsize = finfo.bytes;
 fid = fopen(pathToBinary);
 frameCountCalculation = fsize/frameSize(1)/frameSize(2)/2;
 
-frame_mean = [];
-framesInSet = [];
+frame_mean = zeros([1,frameCountCalculation]);
+
 for iStart = 1:blockSize:frameCountCalculation
     disp(['Frame ',num2str(iStart),' of ',num2str(frameCountCalculation)]);
     lastFrame = iStart + blockSize-1;
@@ -645,7 +644,7 @@ for iStart = 1:blockSize:frameCountCalculation
     % read block of frames
     read_data = fread(fid,frameSize(1)*frameSize(2)*framesToRead,'int16');
     frames_in_set = reshape(read_data,[frameSize(1)*frameSize(2),framesToRead]);
-    frame_mean = [frame_mean,mean(frames_in_set,1)];
+    frame_mean(iStart:iStart+framesToRead-1) = mean(frames_in_set,1);
 end
 
 fclose(fid);

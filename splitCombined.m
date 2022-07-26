@@ -25,8 +25,8 @@ function splitCombined()
 
 % Information to edit:
 % data root
-data_root = 'D:\Data';
-first_exp_id = '2022-01-21_01_ESPM039';
+data_root = 'E:\Local_Repository';
+first_exp_id = '2022-04-20_07_ESMT072';
 
 % begin processing
 animal_id = first_exp_id(15:end);
@@ -62,6 +62,8 @@ end
 
 disp('Verification checks passed');
 
+all_mean_frames = [];
+
 for iPlane = 0:length(planes_list)-1
     disp(['=====Plane ',num2str(iPlane),'=====']);
     % load data for plane
@@ -87,7 +89,6 @@ for iPlane = 0:length(planes_list)-1
         npy.F = npy.F(:,exp_Start_frame:exp_Start_frame+frames_in_exp-1);
         npy.Fneu = npy.Fneu(:,exp_Start_frame:exp_Start_frame+frames_in_exp-1);
         npy.spks = npy.spks(:,exp_Start_frame:exp_Start_frame+frames_in_exp-1);
-        
         % save data
         output_folder = fullfile(data_root,animal_id,expIDs{iExp},'suite2p',['plane',num2str(iPlane)]);
         [x,~] = mkdir(output_folder);
@@ -95,16 +96,39 @@ for iPlane = 0:length(planes_list)-1
             error(['Error making folder to output suite2p data to for experiment ',expIDs{iExp}]);
         end
         % save matlab data
-        save(fullfile(output_folder,'Fall.mat'),'Fall.F','Fall.Fneu','Fall.spks');
+        F = Fall.F;
+        Fneu = Fall.Fneu;
+        spks = Fall.spks;
+        ops = Fall.ops;
+        stat = Fall.stat;
+        exp_frames = exp_Start_frame:exp_Start_frame+frames_in_exp-1;
+        save(fullfile(output_folder,'Fall.mat'),'F','Fneu','spks','ops','stat','exp_frames');
         % save npy data
         writeNPY(Fall.F,fullfile(output_folder,'F.npy'));
         writeNPY(npy.Fneu,fullfile(output_folder,'Fneu.npy'));
         writeNPY(npy.spks,fullfile(output_folder,'spks.npy'));
         % copy npy cell classification file
         copyfile(fullfile(exp_path,['plane',num2str(iPlane)],'iscell.npy'),fullfile(output_folder,'iscell.npy'));
+        % copy frames from registered video bin file to split folder
+        path_to_source_bin = fullfile(exp_path,['plane',num2str(iPlane)],'data.bin');
+        path_to_dest_bin = fullfile(output_folder,'data.bin');
+        frameSize = size(ops.meanImg);
+        frames_to_copy = exp_Start_frame:exp_Start_frame+frames_in_exp-1;
+        all_mean_frames{iPlane+1,iExp} = split_s2p_vid(path_to_source_bin,path_to_dest_bin,frameSize,frames_to_copy);
     end 
-end    
-  
+end
+
+figure;
+subplot(length(expIDs),length(planes_list),1);
+current_plot = 0;
+for iPlane = 0:length(planes_list)-1
+    for iExp = 1:length(expIDs)
+        current_plot = current_plot + 1;
+        subplot(length(expIDs),length(planes_list),current_plot);
+        imagesc(all_mean_frames{iPlane+1,iExp});
+        colormap gray
+    end
+end
 end
 
 function data = readNPY(filename)
@@ -250,3 +274,48 @@ function header = constructNPYheader(dataType, shape, varargin)
     header = uint8([magicString majorVersion minorVersion headerLength dictString zeroPad]);
 
 end
+
+function combined_data = split_s2p_vid(path_to_source_bin,path_to_dest_bin,frameSize,frames_to_copy,expected_total_frames)
+frames_to_copy = double(frames_to_copy);
+% fclose all
+% pathToBinary = 'D:\ACC Data\2016-05-28_02_CFEB014\suite2p\plane0\data.bin';
+% frameSize = [256 256];
+blockSize = 1000;
+
+finfo = dir(path_to_source_bin);
+fsize = finfo.bytes;
+fid = fopen(path_to_source_bin);
+fid2 = fopen(path_to_dest_bin,'w');
+frameCountCalculation = fsize/frameSize(1)/frameSize(2)/2;
+total_frames_to_write = length(frames_to_copy);
+
+frame_mean = [];
+framesInSet = [];
+
+% jump forward in file to start of current experiment
+start_bytes = 2 * frameSize(1) * frameSize(2) * (frames_to_copy(1)-1);
+fseek(fid,start_bytes,'bof');
+read_data = int16(1);
+for iStart = 1:blockSize:total_frames_to_write
+    lastFrame = iStart + blockSize-1;
+    lastFrame = min(lastFrame,total_frames_to_write);
+    framesToRead = lastFrame - iStart + 1;
+    disp(['Frame ',num2str(iStart+frames_to_copy(1)-1),'-',num2str(lastFrame+frames_to_copy(1)-1),' of ',num2str(frameCountCalculation)]);
+    % read block of frames
+    disp('Reading...');
+    read_data = int16(fread(fid,frameSize(1)*frameSize(2)*framesToRead,'int16'));
+    % write to other file
+    disp('Writing...');
+    fwrite(fid2,read_data,'int16');
+    % debug
+    if iStart == 1
+        combined_data = reshape(read_data,[frameSize(1),frameSize(2),framesToRead]);
+    %combined_data = reshape(combined_data,[frameSize(1),frameSize(2),framesToRead]);
+    %figure; imagesc(mean(combined_data,3))
+    end
+end
+fclose(fid);
+fclose(fid2);
+combined_data = squeeze(mean(combined_data,3));
+end
+
