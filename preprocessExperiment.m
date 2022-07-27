@@ -1,17 +1,32 @@
 function preprocessExperiment()
 
-dataRoot = 'E:\Local_Repository';
-expID = '2022-04-20_07_ESMT072';
+dataRoot = 'V:\Local_Repository';
+expID = '2022-02-07_02_ESPM039';
 
 animalID = expID(15:end);
-expRoot = fullfile(dataRoot,animalID,expID);
-recordingsRoot = fullfile(expRoot,'recordings');
+expRootLocal = fullfile(dataRoot,animalID,expID);
+expRootMeta = fullfile(dataRoot,animalID,expID);
+recordingsRoot = fullfile(expRootLocal,'recordings');
 if ~exist(recordingsRoot)
     mkdir(recordingsRoot);
 end
 
-Timeline = load(fullfile(expRoot,[expID,'_Timeline.mat']));
-Timeline = Timeline.timelineSession;
+% is Timeline file is present then assume all other meta data files are
+% also on the local disk. if not then assume they all need to be loaded
+% from the server. this will only work when running this on the UAB network
+% where the meta data files can be accessed.
+
+if exist(fullfile(expRootLocal,[expID,'_Timeline.mat']))
+    % assume all meta data is available in the expRoot folder.
+    Timeline = load(fullfile(expRootLocal,[expID,'_Timeline.mat']));
+    Timeline = Timeline.timelineSession;
+    disp('Meta data found locally');
+else
+    expRootMeta = fullfile('\\AR-LAB-NAS1\DataServer\Remote_Repository',animalID,expID);
+    Timeline = load(fullfile(expRootMeta,[expID,'_Timeline.mat']));
+    Timeline = Timeline.timelineSession;
+    disp('Using remote meta data');
+end
 
 % Do some plots to help spot dodgy data
 figure;
@@ -32,7 +47,7 @@ linkaxes(ax,'x');
 
 
 %% Process Bonsai stuff
-FrameEvents = readtable(fullfile(expRoot,[expID,'_FrameEvents.csv']));
+FrameEvents = readtable(fullfile(expRootMeta,[expID,'_FrameEvents.csv']));
 FrameEvents.Properties.VariableNames = {'Frame','Timestamp','Sync','Trial'};
 
 % find BV times when digital flips
@@ -66,7 +81,7 @@ trialOnsetTimesBV = [FrameEvents.Timestamp(1);FrameEvents.Timestamp(find(diff(Fr
 % in TL time
 trialOnsetTimesTL = predict(mdl1,trialOnsetTimesBV);
 
-bvMeta = readtable(fullfile(expRoot,[expID,'_TrialMetadata.csv']));
+bvMeta = readtable(fullfile(expRootMeta,[expID,'_TrialMetadata.csv']));
 % % find rows with '/gratings' commands
 % stimParamRows = find(strcmp('/gratings',bvMeta.Var4));
 
@@ -155,7 +170,7 @@ for iStimType = 1:size(uniqueStims,1)
 end
 
 % add running trace
-Encoder = readtable(fullfile(expRoot,[expID,'_Encoder.csv']));
+Encoder = readtable(fullfile(expRootMeta,[expID,'_Encoder.csv']));
 Encoder.Properties.VariableNames = {'Frame','Timestamp','Trial','Position'};
 wheelPos = Encoder.Position;
 wheelTimestamps = predict(mdl1,Encoder.Timestamp);
@@ -165,7 +180,7 @@ wheelPos2 = smooth(interp1(wheelTimestamps,wheelPos,wheelLinearTimescale),50);
 wheelSpeed = (([0;diff(wheelPos2)]*-1)*(62/1024))*100;
 
 % save data
-bvDataRoot = fullfile(expRoot,'bonsai');
+bvDataRoot = fullfile(expRootLocal,'bonsai');
 if ~exist(bvDataRoot)
     mkdir(bvDataRoot);
 end
@@ -179,7 +194,7 @@ writecell(paramNames_grating,fullfile(bvDataRoot,'FeatureParamNames_0.csv'));
 
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
-if exist(fullfile(expRoot,'suite2p'),'dir')
+if exist(fullfile(expRootLocal,'suite2p'),'dir')
     doMerge = false;
     
     resampleFreq = 30;
@@ -207,12 +222,12 @@ if exist(fullfile(expRoot,'suite2p'),'dir')
     %outputTimes = Timeline.time(1):1/resampleFreq:Timeline.time(end);
     
     % check number of channels
-    if exist(fullfile(expRoot,'ch2'))
+    if exist(fullfile(expRootLocal,'ch2'))
         % then there are 2 functional channels
-        dataPath{1} = fullfile(expRoot,'suite2p');
-        dataPath{2} = fullfile(expRoot,'ch2','suite2p');
+        dataPath{1} = fullfile(expRootLocal,'suite2p');
+        dataPath{2} = fullfile(expRootLocal,'ch2','suite2p');
     else
-        dataPath{1} = fullfile(expRoot,'suite2p');
+        dataPath{1} = fullfile(expRootLocal,'suite2p');
     end
     
     % check number of depths
@@ -485,7 +500,7 @@ writematrix([Timeline.time',Timeline.daqData(:,[ePhys1Idx ePhys2Idx])],fullfile(
 
 %% process camera pulses
 try
-    load(fullfile(expRoot,[expID,'_eyeMeta1.mat']));
+    load(fullfile(expRootLocal,[expID,'_eyeMeta1.mat']));
     camIdx  = find(ismember(Timeline.chNames,'EyeCamera'));
     camPulseTrace = Timeline.daqData(:,camIdx)>2.5;
     framePulseTimes = Timeline.time(find(diff(camPulseTrace)==1));
@@ -551,8 +566,8 @@ try
     % store detected eye details with timeline timestamps
     % load
     try
-        leftEyeData = load(fullfile(expRoot,'dlcEyeLeft.mat'));leftEyeData = leftEyeData.eyeDat;
-        rightEyeData = load(fullfile(expRoot,'dlcEyeRight.mat'));rightEyeData = rightEyeData.eyeDat;
+        leftEyeData = load(fullfile(expRootLocal,'dlcEyeLeft.mat'));leftEyeData = leftEyeData.eyeDat;
+        rightEyeData = load(fullfile(expRootLocal,'dlcEyeRight.mat'));rightEyeData = rightEyeData.eyeDat;
         
         % resample to 10Hz constant rate
         newTimeVector = loggedFrameTimes(1):0.1:loggedFrameTimes(end);

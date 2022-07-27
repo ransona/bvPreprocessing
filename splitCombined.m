@@ -25,8 +25,8 @@ function splitCombined()
 
 % Information to edit:
 % data root
-data_root = 'E:\Local_Repository';
-first_exp_id = '2022-04-20_07_ESMT072';
+data_root = 'V:\Local_Repository';
+first_exp_id = '2022-02-07_01_ESPM039';
 
 % begin processing
 animal_id = first_exp_id(15:end);
