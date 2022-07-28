@@ -1,7 +1,7 @@
 function preprocessExperiment()
 
-dataRoot = 'V:\Local_Repository';
-expID = '2022-02-07_02_ESPM039';
+dataRoot = 'c:\Local_Repository';
+expID = '022-04-20_07_ESMT072';
 
 animalID = expID(15:end);
 expRootLocal = fullfile(dataRoot,animalID,expID);
@@ -92,19 +92,22 @@ endRows   = find(strcmp('/end',bvMeta.Var4));
 startRows = find(strcmp('/start',bvMeta.Var4));
 stimStartRows = [1;endRows(1:end-1)+1];
 stimEndRows   = startRows-1;
+number_of_trials = size(stimStartRows,1);
 featsPerStim = stimEndRows - stimStartRows +1;
 
 % do some quality controls here
 % 1) number of trials same as frames file?
 % 2) expected /experiment etc commands all in place?
 % remove other rows
+bvCommand = table2cell(bvMeta(:,4));
 bvMeta = bvMeta(:,8);
 % parse params
 allTrials = [];
 allTrialStruct = [];
 allTrialsStr = [];
+allTrialsFeatTypes = [];
 featureNumber = 0;
-for iTrial = 1:size(stimStartRows,1)
+for iTrial = 1:number_of_trials
     % within each trial go through each feature
     for iFeature = 0:featsPerStim(iTrial)-1
         featureNumber = featureNumber + 1;
@@ -112,15 +115,18 @@ for iTrial = 1:size(stimStartRows,1)
         % remove all curly and square brackets
         paramVals = erase(paramVals,["{","}","[","]"]);
         paramVals = erase(paramVals,",,");
+        % parse parameters
         paramVals = strsplit(paramVals,',');
         paramVals = paramVals(2:end-1);
         allTrialsStr{featureNumber,1} = num2str(trialOnsetTimesTL(iTrial));
         allTrialsStr{featureNumber,2} = num2str(iTrial);
         allTrials(featureNumber,1) = trialOnsetTimesTL(iTrial);
         allTrials(featureNumber,2) = iTrial;
+        allTrialsFeatTypes{featureNumber} = bvCommand{stimStartRows(iTrial)+iFeature,1}(2:end);
+%         allTrialsFeatTypes
         for iParam = 1:length(paramVals)
             % +2 because the 1st/2nd columns are time and trial number
-            allTrials(featureNumber,iParam+2) = str2num(paramVals(iParam));
+            %allTrials(featureNumber,iParam+2) = str2num(paramVals(iParam));
             allTrialsStr{featureNumber,iParam+2} = char(paramVals(iParam));
         end
     end
@@ -128,44 +134,48 @@ end
 
 % add starttime as parameter
 % process the trial meta data to get stimulus parameters
-paramNames_grating = {'stimnumber','featurenumber','featuretype','angle','size','x','y','contrast','opacity','phase','freq','speed','dcycle','onset','duration'};
+
+paramNames_gratings = {'stimnumber','featurenumber','featuretype','angle','size','x','y','contrast','opacity','phase','freq','speed','dcycle','onset','duration'};
+paramNames_video    = {'stimnumber','featurenumber','featuretype','angle','width','height','x','y','loop','speed','name','onset','duration'};
 
 % figure out how many unique stimulus types there are.
 % this should be done later by saving the stimulus parameters in the GUI
 % when experiment is run, and also saving stimulus order
 % 1) turn each complete stim (i.e. all features) into 1 string
-catStimParams = [];
-allStimParamsCell = [];
-for iStim = 1:size(stimStartRows,1)
+
+for iStim = 1:number_of_trials
     stimRows = find(allTrials(:,2)==iStim);
-    allStimParamsCell{iStim} = allTrials(stimRows,:);
-    allStimParams = allTrials(stimRows,3:end)';
-    allStimParams = allStimParams(:)';
-    if iStim == 1
-        catStimParams = allStimParams;
-    else
-        catStimParams = padcat(catStimParams,allStimParams);
-    end
+    allStimParamsCell{iStim} = allTrialsStr(stimRows,3:end);
+    allStimFeatTypes{iStim} = allTrialsFeatTypes(stimRows);
+    % remove information related to timing of stim onsets offsets:
+    allStimParamsCellLinearised{iStim} = allStimParamsCell{iStim}(:)';
+    % combine all cells to make one long string
+    catStimParams{iStim} = strjoin(allStimParamsCellLinearised{iStim}(~cellfun(@isempty,allStimParamsCellLinearised{iStim})));
 end
 
-uniqueStims = unique(catStimParams,'rows');
+uniqueStims = unique(catStimParams);
 
 % classify each trial as one of the unique stims
-for iTrial = 1:size(stimStartRows,1)
-    [tf, index]=ismember(catStimParams(iTrial,:),uniqueStims,'rows');
-    allTrialTypes(iTrial,1)=index;
-end
+[tf, index]=ismember(catStimParams,uniqueStims);
+allTrialTypes=index;
 
-% make a matrix for csv output
-trialTimeMatrix = [trialOnsetTimesTL,allTrialTypes];
+% make a matrix for csv output of trial onset time and trial stimulus type
+trialTimeMatrix = [trialOnsetTimesTL,allTrialTypes'];
 
 % store the params of each unique stim conditions in a csv
 allStimTypes = [];
-for iStimType = 1:size(uniqueStims,1)
-    featuretype = 0; % grating - add others here later
-    [~, firstInstance]=ismember(uniqueStims(iStimType,:),catStimParams,'rows');
-    stimParams = allStimParamsCell{firstInstance}(:,3:end);
-    stimParams = [ones([size(stimParams,1) 1])*iStimType,[1:size(stimParams,1)]',repmat(featuretype,[[size(stimParams,1) 1]]),stimParams];
+for iStimType = 1:size(uniqueStims,2)
+    [~, firstInstance]=ismember(uniqueStims{iStimType},catStimParams);
+    stimParams = allStimParamsCell{firstInstance};
+    % determine the type of each of the features in the stimulus (i.e.
+    % grating / movie etc
+    features_types = allStimFeatTypes{firstInstance}';
+    % convert feature type strings to numbers
+    features_types = strrep(features_types,'gratings','0');
+    features_types = strrep(features_types,'video','1');
+    stimParams = [num2cell(ones([size(stimParams,1) 1])*iStimType,size(stimParams,1)),... % the stimulus number
+                  num2cell((1:size(stimParams,1))',size(stimParams,1)),...                % the feature number
+                  features_types,stimParams];
     allStimTypes = [allStimTypes;stimParams];
 end
 
@@ -188,9 +198,10 @@ writematrix([wheelLinearTimescale',wheelPos2],fullfile(recordingsRoot,'WheelPos.
 writematrix([wheelLinearTimescale',wheelSpeed],fullfile(recordingsRoot,'WheelSpeed.csv'));
 writematrix(trialTimeMatrix,fullfile(bvDataRoot,'Trials.csv'));
 % info on what each stimulus number contrains - i.e. param values:
-writematrix(allStimTypes,fullfile(bvDataRoot,'StimProperties.csv'));
+writecell(allStimTypes,fullfile(bvDataRoot,'StimProperties.csv'));
 % add more stimulus types here later:
-writecell(paramNames_grating,fullfile(bvDataRoot,'FeatureParamNames_0.csv'));
+writecell(paramNames_gratings,fullfile(bvDataRoot,'FeatureParamNames_0.csv'));
+writecell(paramNames_video,fullfile(bvDataRoot,'FeatureParamNames_1.csv'));
 
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
