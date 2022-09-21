@@ -1,7 +1,7 @@
 function preprocessExperiment()
 
-dataRoot = 'c:\Local_Repository';
-expID = '022-04-20_07_ESMT072';
+dataRoot = 'e:\Local_Repository';
+expID = '2022-04-20_07_ESMT072';
 
 animalID = expID(15:end);
 expRootLocal = fullfile(dataRoot,animalID,expID);
@@ -309,6 +309,21 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir')
                 cellValid(zeroROIs,1) = 0;
                 cellValid(zeroROIs,2) = 1;
             end
+
+            % find cells which are part of merges and set iscell to 0
+            totalMerges = 0;
+            for iCell = 1:length(Fall.stat)
+                if Fall.stat{iCell}.inmerge == 1
+                    % then the cell is included in a merged roi
+                    cellValid(iCell)=0;
+                    totalMerges = totalMerges + 1;
+                end
+            end
+            
+            if totalMerges>0
+                disp(['Merges found:',num2str(totalMerges)]);
+            end
+
             
             % remove cells with iscell = 0 but keep record of original
             % suite2p output cell numbers
