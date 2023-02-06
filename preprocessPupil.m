@@ -1,5 +1,5 @@
 function preprocessPupil()
-expID = '2021-09-30_02_TEST';
+expID = '2022-01-21_04_ESPM039';
 dataRoot = 'D:\data';
 animalID = expID(15:end);
 
@@ -26,7 +26,7 @@ if exist(fullfile(expRoot,'dlcEye.mat'),'file')
     end
 end
 
-for iVid = 1:length(dlc_filenames)
+for iVid = 2:length(dlc_filenames)
     try
         videoPath = fullfile(expRoot,vid_filenames{iVid});
         v = VideoReader(videoPath);
@@ -57,8 +57,8 @@ for iVid = 1:length(dlc_filenames)
     imagesc(firstFrame);
     roiLeft = median(eyeX(:,3));
     roiTop = median(eyeY(:,2));
-    roiWidth = median(eyeX(:,1))-roiLeft;
-    roiHeight = median(eyeY(:,4))-roiTop;
+    roiWidth = 50; % median(eyeX(:,1))-roiLeft;
+    roiHeight = 50; % median(eyeY(:,4))-roiTop;
     padding = roiWidth * 0.75;
     eyeROI = images.roi.Rectangle(gca,'Position',[roiLeft-padding,roiTop-padding,roiWidth+padding*2,roiHeight+padding*2],'StripeColor','r');
     eyeROI.wait;
