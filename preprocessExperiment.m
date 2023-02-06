@@ -92,6 +92,10 @@ paramNames_gratings = {'stimnumber','featurenumber','featuretype','angle','size'
 paramNames_video    = {'stimnumber','featurenumber','featuretype','angle','width','height','x','y','loop','speed','name','onset','duration'};
 
 % make a matrix for csv output of trial onset time and trial stimulus type
+% check number of trial onsets matches between bonvision and bGUI
+if length(trialOnsetTimesTL)~=length(expDat.stimOrder)
+    error('Number of trial onsets doesn''t match between bonvision and bGUI - there is a likely logging issue')
+end
 trialTimeMatrix = [trialOnsetTimesTL,expDat.stimOrder'];
 
 % store the params of each  stim conditions in a csv
