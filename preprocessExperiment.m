@@ -257,12 +257,15 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==fale
             end
 
             % find cells which are part of merges and set iscell to 0
+            % this refers to merges in suite2p
             totalMerges = 0;
             for iCell = 1:length(Fall.stat)
-                if Fall.stat{iCell}.inmerge == 1
-                    % then the cell is included in a merged roi
-                    cellValid(iCell)=0;
-                    totalMerges = totalMerges + 1;
+                if isfield(Fall.stat{iCell},'ismerge')
+                    if Fall.stat{iCell}.inmerge == 1
+                        % then the cell is included in a merged roi
+                        cellValid(iCell)=0;
+                        totalMerges = totalMerges + 1;
+                    end
                 end
             end
             
@@ -270,7 +273,6 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==fale
                 disp(['Merges found:',num2str(totalMerges)]);
             end
 
-            
             % remove cells with iscell = 0 but keep record of original
             % suite2p output cell numbers
             Fneu = Fall.Fneu(cellValid(:,1)==1,:);
