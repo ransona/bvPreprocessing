@@ -1,13 +1,33 @@
-function preprocessExperiment(expID,dataRoot)
-
+function preprocessExperiment(expID,dataRoot,outputRoot,processedRoot)
+% takes data from "Remote_Repository" and "Remote_Repository_Processed" and
+% gets it in shape to be used in further analysis
 skip_ca = false;
 
 animalID = expID(15:end);
 expRootLocal = fullfile(dataRoot,animalID,expID);
 expRootMeta = fullfile(dataRoot,animalID,expID);
-recordingsRoot = fullfile(expRootLocal,'recordings');
+if exist('outputRoot')
+    % this should be specified to output to 'Remote_Repository_Processed'
+    % when doing Google Colab based analysis
+    outputDir = fullfile(outputRoot,animalID,expID);
+else
+    outputDir = expRootLocal;
+end
+
+if exist('processedRoot')
+    expRootLocals2p = fullfile(processedRoot,animalID,expID);
+else
+    expRootLocals2p = expRootLocal;
+end
+    
+recordingsRoot = fullfile(outputDir,'recordings');
 if ~exist(recordingsRoot)
     mkdir(recordingsRoot);
+end
+
+bvDataRoot = fullfile(outputDir,'bonsai');
+if ~exist(bvDataRoot)
+    mkdir(bvDataRoot);
 end
 
 % is Timeline file is present then assume all other meta data files are
@@ -136,10 +156,6 @@ wheelPos2 = smooth(interp1(wheelTimestamps,wheelPos,wheelLinearTimescale),50);
 wheelSpeed = (([0;diff(wheelPos2)]*-1)*(62/1024))*100;
 
 % save data
-bvDataRoot = fullfile(expRootLocal,'bonsai');
-if ~exist(bvDataRoot)
-    mkdir(bvDataRoot);
-end
 writematrix([wheelLinearTimescale',wheelPos2],fullfile(recordingsRoot,'WheelPos.csv'));
 writematrix([wheelLinearTimescale',wheelSpeed],fullfile(recordingsRoot,'WheelSpeed.csv'));
 writematrix(trialTimeMatrix,fullfile(bvDataRoot,'Trials.csv'));
@@ -153,7 +169,7 @@ writecell(paramNames_video,fullfile(bvDataRoot,'FeatureParamNames_1.csv'));
 
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
-if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==fale
+if exist(fullfile(expRootLocals2p,'suite2p'),'dir') && skip_ca == false
     doMerge = false;
     resampleFreq = 30;
     neuropilWeight = 0.7;
@@ -179,12 +195,12 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==fale
     %outputTimes = Timeline.time(1):1/resampleFreq:Timeline.time(end);
     
     % check number of channels
-    if exist(fullfile(expRootLocal,'ch2'))
+    if exist(fullfile(expRootLocals2p,'ch2'))
         % then there are 2 functional channels
-        dataPath{1} = fullfile(expRootLocal,'suite2p');
-        dataPath{2} = fullfile(expRootLocal,'ch2','suite2p');
+        dataPath{1} = fullfile(expRootLocals2p,'suite2p');
+        dataPath{2} = fullfile(expRootLocals2p,'ch2','suite2p');
     else
-        dataPath{1} = fullfile(expRootLocal,'suite2p');
+        dataPath{1} = fullfile(expRootLocals2p,'suite2p');
     end
     
     % check number of depths
