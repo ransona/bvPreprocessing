@@ -1,6 +1,8 @@
-function preprocessExperiment(expID,dataRoot)
+function preprocessExperiment(expID,dataRoot,skip_ca)
 
-skip_ca = false;
+if ~exist('skip_ca','var')
+    skip_ca = false;
+end
 
 animalID = expID(15:end);
 expRootLocal = fullfile(dataRoot,animalID,expID);
@@ -153,7 +155,7 @@ writecell(paramNames_video,fullfile(bvDataRoot,'FeatureParamNames_1.csv'));
 
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
-if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==fale
+if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==false
     doMerge = false;
     resampleFreq = 30;
     neuropilWeight = 0.7;
