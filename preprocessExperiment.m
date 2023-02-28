@@ -1,5 +1,6 @@
-function preprocessExperiment(expID,dataRoot,skip_ca)
-
+function preprocessExperiment(expID,dataRoot,outputRoot,processedRoot,skip_ca)
+% takes data from "Remote_Repository" and "Remote_Repository_Processed" and
+% gets it in shape to be used in further analysis
 if ~exist('skip_ca','var')
     skip_ca = false;
 end
@@ -7,9 +8,28 @@ end
 animalID = expID(15:end);
 expRootLocal = fullfile(dataRoot,animalID,expID);
 expRootMeta = fullfile(dataRoot,animalID,expID);
-recordingsRoot = fullfile(expRootLocal,'recordings');
+if exist('outputRoot')
+    % this should be specified to output to 'Remote_Repository_Processed'
+    % when doing Google Colab based analysis
+    outputDir = fullfile(outputRoot,animalID,expID);
+else
+    outputDir = expRootLocal;
+end
+
+if exist('processedRoot')
+    expRootLocals2p = fullfile(processedRoot,animalID,expID);
+else
+    expRootLocals2p = expRootLocal;
+end
+    
+recordingsRoot = fullfile(outputDir,'recordings');
 if ~exist(recordingsRoot)
     mkdir(recordingsRoot);
+end
+
+bvDataRoot = fullfile(outputDir,'bonsai');
+if ~exist(bvDataRoot)
+    mkdir(bvDataRoot);
 end
 
 % is Timeline file is present then assume all other meta data files are
@@ -138,10 +158,6 @@ wheelPos2 = smooth(interp1(wheelTimestamps,wheelPos,wheelLinearTimescale),50);
 wheelSpeed = (([0;diff(wheelPos2)]*-1)*(62/1024))*100;
 
 % save data
-bvDataRoot = fullfile(expRootLocal,'bonsai');
-if ~exist(bvDataRoot)
-    mkdir(bvDataRoot);
-end
 writematrix([wheelLinearTimescale',wheelPos2],fullfile(recordingsRoot,'WheelPos.csv'));
 writematrix([wheelLinearTimescale',wheelSpeed],fullfile(recordingsRoot,'WheelSpeed.csv'));
 writematrix(trialTimeMatrix,fullfile(bvDataRoot,'Trials.csv'));
@@ -155,7 +171,7 @@ writecell(paramNames_video,fullfile(bvDataRoot,'FeatureParamNames_1.csv'));
 
 %% process ca2+ imaging traces
 % check suite2p folder exists to be processed
-if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==false
+if exist(fullfile(expRootLocals2p,'suite2p'),'dir') && skip_ca == false
     doMerge = false;
     resampleFreq = 30;
     neuropilWeight = 0.7;
@@ -181,12 +197,12 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==false
     %outputTimes = Timeline.time(1):1/resampleFreq:Timeline.time(end);
     
     % check number of channels
-    if exist(fullfile(expRootLocal,'ch2'))
+    if exist(fullfile(expRootLocals2p,'ch2'))
         % then there are 2 functional channels
-        dataPath{1} = fullfile(expRootLocal,'suite2p');
-        dataPath{2} = fullfile(expRootLocal,'ch2','suite2p');
+        dataPath{1} = fullfile(expRootLocals2p,'suite2p');
+        dataPath{2} = fullfile(expRootLocals2p,'ch2','suite2p');
     else
-        dataPath{1} = fullfile(expRootLocal,'suite2p');
+        dataPath{1} = fullfile(expRootLocals2p,'suite2p');
     end
     
     % check number of depths
@@ -259,12 +275,15 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==false
             end
 
             % find cells which are part of merges and set iscell to 0
+            % this refers to merges in suite2p
             totalMerges = 0;
             for iCell = 1:length(Fall.stat)
-                if Fall.stat{iCell}.inmerge == 1
-                    % then the cell is included in a merged roi
-                    cellValid(iCell)=0;
-                    totalMerges = totalMerges + 1;
+                if isfield(Fall.stat{iCell},'ismerge')
+                    if Fall.stat{iCell}.inmerge == 1
+                        % then the cell is included in a merged roi
+                        cellValid(iCell)=0;
+                        totalMerges = totalMerges + 1;
+                    end
                 end
             end
             
@@ -272,7 +291,6 @@ if exist(fullfile(expRootLocal,'suite2p'),'dir') && skip_ca==false
                 disp(['Merges found:',num2str(totalMerges)]);
             end
 
-            
             % remove cells with iscell = 0 but keep record of original
             % suite2p output cell numbers
             Fneu = Fall.Fneu(cellValid(:,1)==1,:);
