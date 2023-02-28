@@ -1,5 +1,6 @@
 function convert_stim_for_py_batch()
-Folder = 'E:\Local_Repository\ESMT072';
+Folder = 'C:\Local_Repository\ESMT072';
+Folder = 'G:\.shortcut-targets-by-id\1P7g8LSE5D6vInT7OOXY1EIzJ0M4zvhos\Remote_Repository\TEST\2023-02-27_09_TEST';
 FileList = dir(fullfile(Folder, '**', '*stim.mat'));
 disp(['Found ',num2str(length(FileList)),' stim files']);
 for iFile = 1:length(FileList)
@@ -20,7 +21,7 @@ for iFile = 1:length(FileList)
     % for each feature number discover all unique parameter names
     for iStim = 1:length(expDat.stims)
         for iFeat = 1:length(expDat.stims(iStim).features)
-            all_param_names{iFeat} = cat(2,all_param_names{iFeat},expDat.stims(iStim).features(iFeat).params);
+            all_param_names{iFeat} = cat(2,all_param_names{iFeat},expDat.stims(iStim).features(iFeat).params,'type');
         end
     end
     % find unique param names for each feature
@@ -39,7 +40,11 @@ for iFile = 1:length(FileList)
                     if Lia
                         output_table{iFeat}(iStim,iParam) = {expDat.stims(iStim).features(iFeat).vals{Locb}};
                     else
-                        output_table{iFeat}(iStim,iParam) = {'NaN'};
+                        if strcmp(all_param_names{iFeat}{iParam},'type')
+                            output_table{iFeat}(iStim,iParam) = {expDat.stims(iStim).features(iFeat).name};
+                        else
+                            output_table{iFeat}(iStim,iParam) = {'NaN'};
+                        end
                     end
                 end
             else
