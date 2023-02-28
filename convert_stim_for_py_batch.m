@@ -14,6 +14,18 @@ for iFile = 1:length(FileList)
             max_feat = length(expDat.stims(iStim).features);
         end
     end
+    % determine the total stimulus duration by finding the max start +
+    % duration value
+    allDurations = zeros([length(expDat.stims),1]);
+    for iStim = 1:length(expDat.stims)
+        for iFeat = 1:length(expDat.stims(iStim).features)
+            [~,startIdx] = ismember('onset',expDat.stims(iStim).features(iFeat).params);
+            [~,durationIdx] = ismember('duration',expDat.stims(iStim).features(iFeat).params);
+            if str2num(expDat.stims(iStim).features(iFeat).vals{startIdx})+str2num(expDat.stims(iStim).features(iFeat).vals{durationIdx}) > allDurations(iStim)
+                allDurations(iStim) =  str2num(expDat.stims(iStim).features(iFeat).vals{startIdx})+str2num(expDat.stims(iStim).features(iFeat).vals{durationIdx});
+            end
+        end
+    end
     % make empty variable for param names
     for iFeat = 1:max_feat
         all_param_names{iFeat} = {};
@@ -67,8 +79,10 @@ for iFile = 1:length(FileList)
         end
         param_header = [param_header,all_feat_headers];
     end
-
-    param_table = cell2table(combined_output_table, 'VariableNames',param_header);
+    % add column for stim max length
+    allDurations
+    cellstr(num2str(allDurations))
+    param_table = cell2table(cat(2,cellstr(num2str(allDurations)),combined_output_table), 'VariableNames',cat(2,{'duration'},param_header));
     % save as csv
     save_path = FileList(iFile).folder;
     expID = expDat.expID;
