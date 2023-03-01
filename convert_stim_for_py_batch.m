@@ -1,5 +1,7 @@
-function convert_stim_for_py_batch()
-Folder = 'C:\Local_Repository\ESMT072';
+function convert_stim_for_py_batch(Folder)
+if ~exist('Folder','var')
+  Folder = 'C:\Local_Repository\ESMT072';
+end
 % Folder = 'G:\.shortcut-targets-by-id\1P7g8LSE5D6vInT7OOXY1EIzJ0M4zvhos\Remote_Repository\TEST\2023-02-27_09_TEST';
 FileList = dir(fullfile(Folder, '**', '*stim.mat'));
 disp(['Found ',num2str(length(FileList)),' stim files']);
