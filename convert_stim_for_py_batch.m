@@ -87,9 +87,14 @@ for iFile = 1:length(FileList)
         param_header = [param_header,all_feat_headers];
     end
     % add column for stim max length
-    cellstr(num2str(allDurations))
     param_table = cell2table(cat(2,cellstr(num2str(allDurations)),combined_output_table), 'VariableNames',cat(2,{'duration'},param_header));
-    all_trials_table = cell2table(cat(2,cellstr(num2str(expDat.stimOrder')),cellstr(num2str(allDurations(expDat.stimOrder))),combined_output_table_all_trials),'VariableNames',cat(2,{'stim'},{'duration'},param_header));
+    % next 4 lines is to deal with case where there is only 1 stim
+    % conditions which causes all_durs to be oriented wrong
+    all_durs = allDurations(expDat.stimOrder);
+    if size(all_durs,2)>size(all_durs,1)
+      all_durs = all_durs';
+    end
+    all_trials_table = cell2table(cat(2,cellstr(num2str(expDat.stimOrder')),cellstr(num2str(all_durs)),combined_output_table_all_trials),'VariableNames',cat(2,{'stim'},{'duration'},param_header));
     % save as csv
     save_path = FileList(iFile).folder;
     expID = expDat.expID;
