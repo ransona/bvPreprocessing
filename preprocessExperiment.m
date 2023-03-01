@@ -151,6 +151,16 @@ end
 Encoder = readtable(fullfile(expRootMeta,[expID,'_Encoder.csv']));
 Encoder.Properties.VariableNames = {'Frame','Timestamp','Trial','Position'};
 wheelPos = Encoder.Position;
+wheelPosDif = diff(Encoder.Position);
+wheelPosDif(wheelPosDif>50000) = wheelPosDif(wheelPosDif>50000)-2^16;
+wheelPosDif(wheelPosDif<-50000) = wheelPosDif(wheelPosDif>50000)+2^16;
+wheelPos = cumsum(wheelPosDif);
+% if jump is > 65000 then subtract 2^16 from that point onward
+jumpIdx = find(diff(wheelPos)>65000);
+for iJump = 1:length(jumpIdx)
+    wheelPos(jumpIdx(iJump)+1:end) = wheelPos(jumpIdx(iJump)+1:end)-2^16;
+end
+figure;plot((wheelPos))
 wheelTimestamps = predict(mdl1,Encoder.Timestamp);
 % resample wheel to linear timescale
 wheelLinearTimescale = wheelTimestamps(1):0.01:wheelTimestamps(end);

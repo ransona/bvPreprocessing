@@ -1,6 +1,6 @@
 function convert_stim_for_py_batch()
 Folder = 'C:\Local_Repository\ESMT072';
-Folder = 'G:\.shortcut-targets-by-id\1P7g8LSE5D6vInT7OOXY1EIzJ0M4zvhos\Remote_Repository\TEST\2023-02-27_09_TEST';
+% Folder = 'G:\.shortcut-targets-by-id\1P7g8LSE5D6vInT7OOXY1EIzJ0M4zvhos\Remote_Repository\TEST\2023-02-27_09_TEST';
 FileList = dir(fullfile(Folder, '**', '*stim.mat'));
 disp(['Found ',num2str(length(FileList)),' stim files']);
 for iFile = 1:length(FileList)
@@ -70,6 +70,11 @@ for iFile = 1:length(FileList)
     for iFeat = 1:max_feat
         combined_output_table = [combined_output_table,output_table{iFeat}];
     end
+    % make a table where each row is a trial
+    combined_output_table_all_trials = [];
+    for iStim = 1:length(expDat.stimOrder)
+        combined_output_table_all_trials = cat(1,combined_output_table_all_trials,combined_output_table(expDat.stimOrder(iStim),:));
+    end
     % rename params to append feat number in headers
     param_header = [];
     for iFeat = 1:max_feat
@@ -80,14 +85,15 @@ for iFile = 1:length(FileList)
         param_header = [param_header,all_feat_headers];
     end
     % add column for stim max length
-    allDurations
     cellstr(num2str(allDurations))
     param_table = cell2table(cat(2,cellstr(num2str(allDurations)),combined_output_table), 'VariableNames',cat(2,{'duration'},param_header));
+    all_trials_table = cell2table(cat(2,cellstr(num2str(expDat.stimOrder')),cellstr(num2str(allDurations(expDat.stimOrder))),combined_output_table_all_trials),'VariableNames',cat(2,{'stim'},{'duration'},param_header));
     % save as csv
     save_path = FileList(iFile).folder;
     expID = expDat.expID;
     writematrix(expDat.stimOrder',fullfile(save_path,[expID,'_stim_order.csv']));
     writetable(param_table,fullfile(save_path,[expID,'_stim.csv']));
+    writetable(all_trials_table,fullfile(save_path,[expID,'_all_trials.csv']));
     disp(['Finished ',expDat.expID]);
 end
 end
